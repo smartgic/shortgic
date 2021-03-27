@@ -6,10 +6,10 @@ from random import sample
 from string import ascii_letters, digits
 
 
-def get_link(db: Session, link_id: str):
+def get_link(db: Session, link: str):
     """Retrieve link information by link ID
     """
-    return db.query(models.Link).filter(models.Link.link == link_id).first()
+    return db.query(models.Link).filter(models.Link.link == link).first()
 
 
 def get_link_by_target(db: Session, target: str):
@@ -35,3 +35,13 @@ def create_link(db: Session, link: schemas.Link):
     db.commit()
     db.refresh(db_link)
     return db_link
+
+
+def delete_link(db: Session, link: str):
+    """Delete the link
+    """
+    # SQLAlchemy magic :)
+    db_link = db.query(models.Link).filter(models.Link.link == link).first()
+    db.delete(db_link)
+    db.commit()
+    return {}

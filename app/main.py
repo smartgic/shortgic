@@ -38,11 +38,22 @@ def create_link(link: schemas.Link, db: Session = Depends(get_db)):
     return JSONResponse(content=payload)
 
 
-@app.get("/{link_id}", response_model=schemas.Link)
-def get_link(link_id: str, db: Session = Depends(get_db)):
+@app.get("/{link}", response_model=schemas.Link)
+def get_link(link: str, db: Session = Depends(get_db)):
     """Retrieve the link information
     """
-    db_link = crud.get_link(db, link_id=link_id)
+    db_link = crud.get_link(db, link=link)
     if db_link is None:
         raise HTTPException(status_code=404, detail="link not found")
     return db_link
+
+
+@app.delete("/{link}", response_model=schemas.Link)
+def delete_link(link: str, db: Session = Depends(get_db)):
+    """Delete the link from the database
+    """
+    db_link = crud.get_link(db, link=link)
+    if db_link is None:
+        raise HTTPException(status_code=404, detail="link not found")
+    crud.delete_link(db=db, link=link)
+    return JSONResponse(content='{}')
