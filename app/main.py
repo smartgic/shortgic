@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 from . import crud, models, schemas
 from .database import SessionLocal, engine
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 # Create the database schema
 models.Base.metadata.create_all(bind=engine)
@@ -26,7 +26,7 @@ def get_db():
 
 @app.post("/", response_model=schemas.Link)
 def create_link(link: schemas.Link, db: Session = Depends(get_db)):
-    """Create the link
+    """Create link
     """
     # Check if the target already exists
     db_link = crud.get_link_by_target(db=db, target=link.target)
@@ -40,7 +40,17 @@ def create_link(link: schemas.Link, db: Session = Depends(get_db)):
 
 @app.get("/{link}", response_model=schemas.Link)
 def get_link(link: str, db: Session = Depends(get_db)):
-    """Retrieve the link information
+    """Retrieve the target and redirect
+    """
+    db_link = crud.get_link(db, link=link)
+    if db_link is None:
+        raise HTTPException(status_code=404, detail="link not found")
+    return RedirectResponse(url=db_link.target, status_code=302)
+
+
+@app.get("/{link}/info", response_model=schemas.Link)
+def get_link_info(link: str, db: Session = Depends(get_db)):
+    """Retrieve link information
     """
     db_link = crud.get_link(db, link=link)
     if db_link is None:
@@ -50,7 +60,7 @@ def get_link(link: str, db: Session = Depends(get_db)):
 
 @app.delete("/{link}", response_model=schemas.Link)
 def delete_link(link: str, db: Session = Depends(get_db)):
-    """Delete the link from the database
+    """Delete link from the database
     """
     db_link = crud.get_link(db, link=link)
     if db_link is None:
