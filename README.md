@@ -2,7 +2,7 @@
 
 # Shortgic
 
-A minimalist, and lightweight URL shortener using FastAPI and SQLAlchemy and SQLite3.
+A minimalist and lightweight URL shortener using FastAPI and SQLAlchemy and SQLite3.
 
 ## Installation
 

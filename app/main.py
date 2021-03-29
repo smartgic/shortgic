@@ -24,6 +24,16 @@ def get_db():
         db.close()
 
 
+@app.get("/")
+def root():
+    """Root endpoint
+    """
+    payload = {'hello': {'msg': 'welcome on shortgic',
+                         'what': 'a minimalist and lightweight URL shortener',
+                         'website': 'https://github.com/smartgic/shortgic'}}
+    return JSONResponse(content=payload)
+
+
 @app.post("/", response_model=schemas.Link)
 def create_link(link: schemas.Link, db: Session = Depends(get_db)):
     """Create link
