@@ -34,7 +34,7 @@ def root():
     return JSONResponse(content=payload)
 
 
-@app.post("/", response_model=schemas.Link)
+@app.post("/", response_model=schemas.LinkResponse, status_code=201)
 def create_link(link: schemas.Link, db: Session = Depends(get_db)):
     """Create link
     """

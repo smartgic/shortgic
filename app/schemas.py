@@ -13,3 +13,9 @@ class Link(BaseModel):
     # Required because used with SQLAlchemy
     class Config:
         orm_mode = True
+
+
+class LinkResponse(BaseModel):
+    """Link structure response"""
+
+    link: str
