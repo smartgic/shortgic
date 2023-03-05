@@ -5,8 +5,8 @@ from .database import Base
 
 
 class Link(Base):
-    """SQLAlchemy definition for links table
-    """
+    """SQLAlchemy definition for links table"""
+
     __tablename__ = "links"
 
     id = Column(Integer, primary_key=True, index=True, nullable=False)

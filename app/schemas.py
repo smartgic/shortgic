@@ -1,14 +1,14 @@
 """FastAPI Pydantic schema
 """
 from typing import Optional, Any, Dict
-from pydantic import BaseModel, HttpUrl, typing
+from pydantic import BaseModel, HttpUrl
 
 
 class Link(BaseModel):
-    """Link structure validation
-    """
+    """Link structure validation"""
+
     target: HttpUrl
-    extras: Optional[typing.Dict[str, Any]] = {}
+    extras: Optional[Dict[str, Any]] = {}
 
     # Required because used with SQLAlchemy
     class Config:
