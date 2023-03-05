@@ -1,12 +1,25 @@
-FROM python:3.9
+FROM python:3.11-alpine
 
-LABEL vendor=Smartgic.io \
-    io.smartgic.maintainer="Gaëtan Trellu <gaetan.trellu@smartgic.io>"
+LABEL vendor="smartgic.io"
+LABEL source="https://github.com/smartgic/mqtt-client"
+LABEL authors="Gaëtan Trellu <gaetan.trellu@smartgic.io>"
+LABEL title="Smart'Gic shortener URL"
+LABEL description="Simple URL shortener using FastAPI, SQLAlchemy and SQLite"
 
-RUN pip install fastapi uvicorn sqlalchemy
+RUN addgroup -g 1000 shortgic && \
+    adduser --shell /sbin/nologin --disabled-password \
+    --uid 1000 --ingroup shortgic shortgic && \
+    mkdir -m 700 /db && \
+    chown shortgic:shortgic /db
 
-EXPOSE 8000
+USER shortgic
 
-COPY ./app /app
+ENV PATH="$PATH:/home/shortgic/.local/bin"
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+COPY --chown=shortgic:shortgic requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY --chown=shortgic:shortgic app/ /app
+
+ENTRYPOINT ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
