@@ -11,7 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 # Import configuration
-from .config import settings
+from app.config import settings
 
 
 def ensure_database_exists(database_path: str) -> None:
@@ -62,7 +62,7 @@ def create_tables():
     before any database operations.
     """
     # Import models to register them with Base metadata
-    from . import models  # noqa: F401
+    from app import models  # noqa: F401
 
     # Create all tables
     Base.metadata.create_all(bind=engine)

@@ -11,8 +11,8 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-from . import crud, schemas, utils
-from .database import SessionLocal, create_tables
+from app import crud, schemas, utils
+from app.database import SessionLocal, create_tables
 
 
 @asynccontextmanager

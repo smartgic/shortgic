@@ -13,8 +13,8 @@ from fastapi import HTTPException
 from pydantic import HttpUrl
 from sqlalchemy.orm import Session
 
-from . import models, schemas
-from .config import settings
+from app import models, schemas
+from app.config import settings
 
 
 def get_link(db: Session, link: str) -> Optional[models.Link]:

@@ -7,8 +7,8 @@ and common operations used across the application.
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from . import crud, models
-from .config import settings
+from app import crud, models
+from app.config import settings
 
 
 def validate_link_format(link: str) -> None:
