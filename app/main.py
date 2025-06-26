@@ -12,7 +12,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from . import crud, models, schemas, utils
-from .database import SessionLocal, engine
+from .database import SessionLocal, engine, create_tables
 
 
 @asynccontextmanager
@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
         None: Control back to the application during its lifetime.
     """
     # Startup: Create the database schema
-    models.Base.metadata.create_all(bind=engine)
+    create_tables()
     yield
     # Shutdown: Add cleanup logic here if needed
 

@@ -100,7 +100,8 @@ def create_link(db: Session, link: schemas.Link) -> models.Link:
         models.Link: The newly created link record with generated identifier.
 
     Raises:
-        HTTPException: 500 if database transaction fails or unique link generation fails.
+        HTTPException: 500 if database transaction fails or unique link
+            generation fails.
     """
     # Generate unique short link identifier
     shortened = generate_unique_link(db)

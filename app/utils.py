@@ -28,7 +28,10 @@ def validate_link_format(link: str) -> None:
             status_code=400,
             detail={
                 "error": "invalid_link_format",
-                "message": f"Link must be exactly {settings.link_length} alphanumeric characters",
+                "message": (
+                    f"Link must be exactly {settings.link_length} "
+                    "alphanumeric characters"
+                ),
             },
         )
 

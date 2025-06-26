@@ -52,3 +52,17 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+
+
+def create_tables():
+    """Create all database tables.
+
+    This function creates all tables defined in the models.
+    Should be called after models are imported to ensure tables exist
+    before any database operations.
+    """
+    # Import models to register them with Base metadata
+    from . import models  # noqa: F401
+
+    # Create all tables
+    Base.metadata.create_all(bind=engine)
