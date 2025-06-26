@@ -77,7 +77,9 @@ def generate_unique_link(db: Session) -> str:
         ).upper()
         # Use EXISTS query for better performance
         exists = (
-            db.query(models.Link.id).filter(models.Link.link == shortened).first()
+            db.query(models.Link.id)
+            .filter(models.Link.link == shortened)
+            .first()
             is not None
         )
         if not exists:
@@ -114,7 +116,7 @@ def create_link(db: Session, link: schemas.Link) -> models.Link:
         db.commit()
         db.refresh(db_link)
         return db_link
-    except Exception as e:
+    except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to create link")
 
@@ -143,6 +145,6 @@ def delete_link(db: Session, link: str) -> Optional[models.Link]:
         db.delete(db_link)
         db.commit()
         return db_link
-    except Exception as e:
+    except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to delete link")

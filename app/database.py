@@ -5,11 +5,13 @@ and ensures database file creation. Provides the database engine,
 session factory, and base model class for the application.
 """
 
-import os
 from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+
+# Import configuration
+from .config import settings
 
 
 def ensure_database_exists(database_path: str) -> None:
@@ -34,9 +36,6 @@ def ensure_database_exists(database_path: str) -> None:
     if not db_path.exists():
         db_path.touch()
 
-
-# Import configuration
-from .config import settings
 
 # Path to the SQLite3 database
 database_path = settings.database_path

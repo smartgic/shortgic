@@ -12,7 +12,6 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from . import crud, models, schemas, utils
-from .config import settings
 from .database import SessionLocal, engine
 
 
@@ -37,7 +36,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="ShortGic URL Shortener",
-    description="A minimalist and lightweight URL shortener using FastAPI and SQLAlchemy",
+    description=(
+        "A minimalist and lightweight URL shortener using FastAPI and SQLAlchemy"
+    ),
     version="1.0.0",
     contact={
         "name": "SmartGic",
@@ -189,6 +190,6 @@ def delete_link(link: str, db: DbDependency) -> None:
         HTTPException: 404 if the short link does not exist in the database.
         HTTPException: 500 if database operation fails.
     """
-    db_link = utils.get_link_or_404(db, link)
+    utils.get_link_or_404(db, link)
     crud.delete_link(db=db, link=link)
     return None
