@@ -1,4 +1,5 @@
 """Basic tests for ShortGic URL shortener."""
+
 import pytest
 from starlette.testclient import TestClient
 

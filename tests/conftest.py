@@ -1,4 +1,5 @@
 """Test configuration and fixtures for ShortGic tests."""
+
 import os
 import tempfile
 import pytest
@@ -14,7 +15,7 @@ from app.models import Base
 def test_db():
     """Create a temporary test database for each test function."""
     # Create a temporary database file
-    db_fd, db_path = tempfile.mkstemp(suffix='.db')
+    db_fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(db_fd)
 
     # Create test database engine
@@ -35,6 +36,7 @@ def test_db():
 @pytest.fixture(scope="function")
 def client(test_db):
     """Create a test client with test database dependency override."""
+
     def override_get_db():
         db = test_db()
         try:

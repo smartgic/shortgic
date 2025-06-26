@@ -77,9 +77,7 @@ def generate_unique_link(db: Session) -> str:
         ).upper()
         # Use EXISTS query for better performance
         exists = (
-            db.query(models.Link.id)
-            .filter(models.Link.link == shortened)
-            .first()
+            db.query(models.Link.id).filter(models.Link.link == shortened).first()
             is not None
         )
         if not exists:
