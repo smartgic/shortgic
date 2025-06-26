@@ -5,7 +5,8 @@ short link data. All models inherit from the declarative base and include
 proper indexing for optimal query performance.
 """
 
-from sqlalchemy import Column, String, Text, Integer, JSON, Index
+from sqlalchemy import JSON, Column, Index, Integer, String, Text
+
 from .database import Base
 
 

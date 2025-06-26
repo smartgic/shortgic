@@ -5,6 +5,7 @@ variable support and validation. All application settings are defined here
 with sensible defaults and can be overridden via environment variables.
 """
 
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
@@ -36,9 +37,10 @@ class Settings(BaseSettings):
     # URL validation
     max_url_length: int = 2048
 
-    class Config:
-        env_file = ".env"
-        env_prefix = "SHORTGIC_"
+    model_config = ConfigDict(
+        env_file=".env",
+        env_prefix="SHORTGIC_"
+    )
 
 
 settings = Settings()

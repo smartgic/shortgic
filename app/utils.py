@@ -5,8 +5,10 @@ and common operations used across the application.
 """
 
 from typing import Optional
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+
 from . import crud, models
 from .config import settings
 

@@ -5,14 +5,16 @@ updating, and deleting short links. All functions include proper error
 handling and use cryptographically secure random generation.
 """
 
-from typing import Optional, Union
-from sqlalchemy.orm import Session
-from . import models, schemas
-from .config import settings
 import secrets
 import string
+from typing import Optional, Union
+
 from fastapi import HTTPException
 from pydantic import HttpUrl
+from sqlalchemy.orm import Session
+
+from . import models, schemas
+from .config import settings
 
 
 def get_link(db: Session, link: str) -> Optional[models.Link]:

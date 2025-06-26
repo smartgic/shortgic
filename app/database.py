@@ -7,9 +7,9 @@ session factory, and base model class for the application.
 
 import os
 from pathlib import Path
+
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 
 def ensure_database_exists(database_path: str) -> None:

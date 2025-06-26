@@ -5,13 +5,15 @@ for the ShortGic URL shortener service.
 """
 
 from contextlib import asynccontextmanager
-from typing import Annotated, Dict, Any
+from typing import Annotated, Any, Dict
+
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
+
 from . import crud, models, schemas, utils
 from .config import settings
 from .database import SessionLocal, engine
-from fastapi.responses import RedirectResponse
 
 
 @asynccontextmanager
