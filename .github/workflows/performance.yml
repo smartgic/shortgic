@@ -88,7 +88,7 @@ jobs:
         locust --headless --users 50 --spawn-rate 5 --run-time 2m --host http://localhost:8000 --html performance-report.html --csv performance-results
 
     - name: Upload performance results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: performance-results
@@ -230,7 +230,7 @@ jobs:
         python -m pytest tests/benchmarks/ --benchmark-json=benchmark-results.json --benchmark-histogram=benchmark-histogram
 
     - name: Upload benchmark results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: benchmark-results
@@ -358,7 +358,7 @@ jobs:
         python memory_profile.py > memory-profile.txt 2>&1
 
     - name: Upload memory profile
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: memory-profile

@@ -47,6 +47,46 @@ jobs:
     - name: Create test database directory
       run: mkdir -p test-data
 
+    - name: Create basic tests if not exist
+      run: |
+        if [ ! -d "tests" ]; then
+          echo "Creating basic smoke tests..."
+          mkdir -p tests
+          cat > tests/test_basic.py << 'EOF'
+        import pytest
+        from fastapi.testclient import TestClient
+        from app.main import app
+
+        client = TestClient(app)
+
+        def test_health_check():
+            """Test the health check endpoint"""
+            response = client.get("/")
+            assert response.status_code == 200
+
+        def test_create_short_link():
+            """Test creating a short link"""
+            response = client.post("/", json={"target": "https://example.com"})
+            assert response.status_code == 200
+            data = response.json()
+            assert "link" in data
+            assert "target" in data
+            assert data["target"] == "https://example.com"
+
+        def test_redirect():
+            """Test redirect functionality"""
+            # First create a link
+            response = client.post("/", json={"target": "https://example.com"})
+            assert response.status_code == 200
+            link_data = response.json()
+
+            # Then test the redirect
+            response = client.get(f"/{link_data['link']}", follow_redirects=False)
+            assert response.status_code == 302
+            assert response.headers["location"] == "https://example.com"
+        EOF
+        fi
+
     - name: Run tests with coverage
       env:
         SHORTGIC_DATABASE_PATH: ./test-data/test.db
@@ -110,7 +150,7 @@ jobs:
       run: safety check --json --output safety-report.json || true
 
     - name: Upload security reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-reports
