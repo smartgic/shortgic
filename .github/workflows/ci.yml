@@ -1,0 +1,259 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  release:
+    types: [ published ]
+
+env:
+  PYTHON_VERSION: '3.13'
+  DOCKER_IMAGE: shortgic
+  REGISTRY: ghcr.io
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-asyncio httpx
+
+    - name: Create test database directory
+      run: mkdir -p test-data
+
+    - name: Run tests with coverage
+      env:
+        SHORTGIC_DATABASE_PATH: ./test-data/test.db
+        SHORTGIC_DEBUG: true
+      run: |
+        python -m pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
+      continue-on-error: false
+
+    - name: Upload coverage to Codecov
+      if: matrix.python-version == '3.13'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-lint-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-lint-
+
+    - name: Install linting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 black isort mypy bandit safety
+
+    - name: Run Black (code formatting)
+      run: black --check --diff app/
+
+    - name: Run isort (import sorting)
+      run: isort --check-only --diff app/
+
+    - name: Run flake8 (linting)
+      run: flake8 app/ --max-line-length=88 --extend-ignore=E203,W503
+
+    - name: Run mypy (type checking)
+      run: |
+        pip install -r requirements.txt
+        mypy app/ --ignore-missing-imports
+
+    - name: Run bandit (security linting)
+      run: bandit -r app/ -f json -o bandit-report.json || true
+
+    - name: Run safety (dependency security check)
+      run: safety check --json --output safety-report.json || true
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          bandit-report.json
+          safety-report.json
+
+  docker:
+    name: Docker Build & Test
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        tags: ${{ env.DOCKER_IMAGE }}:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test Docker image
+      run: |
+        # Create test data directory
+        mkdir -p test-data
+
+        # Run container in background
+        docker run -d --name shortgic-test \
+          -p 8000:8000 \
+          -v $(pwd)/test-data:/data \
+          -e SHORTGIC_DATABASE_PATH=/data/test.db \
+          ${{ env.DOCKER_IMAGE }}:test
+
+        # Wait for container to be ready
+        sleep 10
+
+        # Test health endpoint
+        curl -f http://localhost:8000/ || exit 1
+
+        # Test API functionality
+        RESPONSE=$(curl -s -X POST http://localhost:8000 \
+          -H "Content-Type: application/json" \
+          -d '{"target": "https://github.com/smartgic/shortgic"}')
+
+        echo "API Response: $RESPONSE"
+
+        # Extract link from response
+        LINK=$(echo $RESPONSE | python -c "import sys, json; print(json.load(sys.stdin)['link'])")
+
+        # Test redirect
+        curl -f -L http://localhost:8000/$LINK || exit 1
+
+        # Cleanup
+        docker stop shortgic-test
+        docker rm shortgic-test
+
+    - name: Run security scan on Docker image
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.DOCKER_IMAGE }}:test
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  publish:
+    name: Publish Docker Image
+    runs-on: ubuntu-latest
+    needs: [test, lint, docker]
+    if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ github.repository }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [publish]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+
+    steps:
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        # Add your staging deployment commands here
+        # Example: kubectl, docker-compose, or cloud provider CLI commands
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [publish]
+    if: github.event_name == 'release'
+    environment: production
+
+    steps:
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        # Add your production deployment commands here
+        # Example: kubectl, docker-compose, or cloud provider CLI commands

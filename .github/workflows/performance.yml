@@ -1,0 +1,388 @@
+name: Performance Testing
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run performance tests weekly on Sundays at 3 AM UTC
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+jobs:
+  load-test:
+    name: Load Testing
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install locust pytest-benchmark
+
+    - name: Start application
+      run: |
+        mkdir -p test-data
+        python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        sleep 5
+      env:
+        SHORTGIC_DATABASE_PATH: ./test-data/perf-test.db
+
+    - name: Create Locust test file
+      run: |
+        cat > locustfile.py << 'EOF'
+        from locust import HttpUser, task, between
+        import json
+        import random
+        import string
+
+        class ShortGicUser(HttpUser):
+            wait_time = between(1, 3)
+
+            def on_start(self):
+                """Initialize user session"""
+                self.created_links = []
+
+            @task(3)
+            def create_short_link(self):
+                """Create a new short link"""
+                target_url = f"https://example.com/{self.generate_random_path()}"
+                response = self.client.post(
+                    "/",
+                    json={"target": target_url},
+                    headers={"Content-Type": "application/json"}
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    self.created_links.append(data["link"])
+
+            @task(7)
+            def access_short_link(self):
+                """Access an existing short link"""
+                if self.created_links:
+                    link = random.choice(self.created_links)
+                    self.client.get(f"/{link}", allow_redirects=False)
+
+            @task(1)
+            def health_check(self):
+                """Health check endpoint"""
+                self.client.get("/")
+
+            def generate_random_path(self):
+                """Generate random path for test URLs"""
+                return ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
+        EOF
+
+    - name: Run load test
+      run: |
+        locust --headless --users 50 --spawn-rate 5 --run-time 2m --host http://localhost:8000 --html performance-report.html --csv performance-results
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: performance-results
+        path: |
+          performance-report.html
+          performance-results_*.csv
+
+    - name: Performance summary
+      run: |
+        echo "# Performance Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [ -f performance-results_stats.csv ]; then
+          echo "## Load Test Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+
+          # Parse CSV and extract key metrics
+          tail -n +2 performance-results_stats.csv | while IFS=',' read -r type name request_count failure_count median_response_time average_response_time min_response_time max_response_time average_content_size requests_per_second failures_per_second p50 p66 p75 p80 p90 p95 p98 p99 p999 p9999 p100; do
+            if [ "$type" = "Aggregated" ]; then
+              echo "| Total Requests | $request_count |" >> $GITHUB_STEP_SUMMARY
+              echo "| Failed Requests | $failure_count |" >> $GITHUB_STEP_SUMMARY
+              echo "| Average Response Time | ${average_response_time}ms |" >> $GITHUB_STEP_SUMMARY
+              echo "| Median Response Time | ${median_response_time}ms |" >> $GITHUB_STEP_SUMMARY
+              echo "| Requests per Second | $requests_per_second |" >> $GITHUB_STEP_SUMMARY
+              echo "| 95th Percentile | ${p95}ms |" >> $GITHUB_STEP_SUMMARY
+              echo "| 99th Percentile | ${p99}ms |" >> $GITHUB_STEP_SUMMARY
+              break
+            fi
+          done
+        fi
+
+  benchmark-test:
+    name: Benchmark Testing
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest-benchmark httpx
+
+    - name: Create benchmark tests
+      run: |
+        mkdir -p tests/benchmarks
+        cat > tests/benchmarks/test_performance.py << 'EOF'
+        import pytest
+        import asyncio
+        from httpx import AsyncClient
+        from app.main import app
+        from app.database import get_db
+        from app.models import Base
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        import tempfile
+        import os
+
+        @pytest.fixture
+        async def client():
+            # Create temporary database for benchmarks
+            db_fd, db_path = tempfile.mkstemp(suffix='.db')
+            os.close(db_fd)
+
+            # Override database dependency
+            engine = create_engine(f"sqlite:///{db_path}")
+            Base.metadata.create_all(bind=engine)
+            SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+            def override_get_db():
+                db = SessionLocal()
+                try:
+                    yield db
+                finally:
+                    db.close()
+
+            app.dependency_overrides[get_db] = override_get_db
+
+            async with AsyncClient(app=app, base_url="http://test") as ac:
+                yield ac
+
+            # Cleanup
+            os.unlink(db_path)
+            app.dependency_overrides.clear()
+
+        @pytest.mark.asyncio
+        @pytest.mark.benchmark(group="create_link")
+        async def test_create_link_performance(benchmark, client):
+            """Benchmark link creation performance"""
+
+            async def create_link():
+                response = await client.post("/", json={"target": "https://example.com/test"})
+                return response
+
+            result = await benchmark(create_link)
+            assert result.status_code == 200
+
+        @pytest.mark.asyncio
+        @pytest.mark.benchmark(group="access_link")
+        async def test_access_link_performance(benchmark, client):
+            """Benchmark link access performance"""
+
+            # First create a link
+            response = await client.post("/", json={"target": "https://example.com/test"})
+            link_data = response.json()
+            short_link = link_data["link"]
+
+            async def access_link():
+                response = await client.get(f"/{short_link}", follow_redirects=False)
+                return response
+
+            result = await benchmark(access_link)
+            assert result.status_code == 302
+
+        @pytest.mark.asyncio
+        @pytest.mark.benchmark(group="health_check")
+        async def test_health_check_performance(benchmark, client):
+            """Benchmark health check performance"""
+
+            async def health_check():
+                response = await client.get("/")
+                return response
+
+            result = await benchmark(health_check)
+            assert result.status_code == 200
+        EOF
+
+    - name: Run benchmark tests
+      run: |
+        python -m pytest tests/benchmarks/ --benchmark-json=benchmark-results.json --benchmark-histogram=benchmark-histogram
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: benchmark-results
+        path: |
+          benchmark-results.json
+          benchmark-histogram.svg
+
+    - name: Benchmark summary
+      run: |
+        echo "## Benchmark Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [ -f benchmark-results.json ]; then
+          python -c "
+        import json
+        import sys
+
+        with open('benchmark-results.json', 'r') as f:
+            data = json.load(f)
+
+        print('| Test | Min (ms) | Max (ms) | Mean (ms) | StdDev (ms) |')
+        print('|------|----------|----------|-----------|-------------|')
+
+        for benchmark in data['benchmarks']:
+            name = benchmark['name'].replace('test_', '').replace('_performance', '')
+            stats = benchmark['stats']
+            min_time = stats['min'] * 1000
+            max_time = stats['max'] * 1000
+            mean_time = stats['mean'] * 1000
+            stddev_time = stats['stddev'] * 1000
+            print(f'| {name} | {min_time:.2f} | {max_time:.2f} | {mean_time:.2f} | {stddev_time:.2f} |')
+        " >> $GITHUB_STEP_SUMMARY
+        fi
+
+  memory-profiling:
+    name: Memory Profiling
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install memory-profiler psutil
+
+    - name: Create memory profiling script
+      run: |
+        cat > memory_profile.py << 'EOF'
+        import psutil
+        import time
+        import requests
+        import subprocess
+        import os
+        import signal
+        from memory_profiler import profile
+
+        def start_app():
+            """Start the application in background"""
+            env = os.environ.copy()
+            env['SHORTGIC_DATABASE_PATH'] = './test-data/memory-test.db'
+
+            process = subprocess.Popen([
+                'python', '-m', 'uvicorn', 'app.main:app',
+                '--host', '0.0.0.0', '--port', '8000'
+            ], env=env)
+
+            # Wait for app to start
+            time.sleep(5)
+            return process
+
+        @profile
+        def memory_test():
+            """Test memory usage during operations"""
+            base_url = "http://localhost:8000"
+
+            # Create multiple links
+            links = []
+            for i in range(100):
+                response = requests.post(
+                    base_url,
+                    json={"target": f"https://example.com/test-{i}"}
+                )
+                if response.status_code == 200:
+                    links.append(response.json()["link"])
+
+            # Access links multiple times
+            for _ in range(10):
+                for link in links[:10]:  # Access first 10 links
+                    requests.get(f"{base_url}/{link}", allow_redirects=False)
+
+            return len(links)
+
+        if __name__ == "__main__":
+            os.makedirs('test-data', exist_ok=True)
+
+            # Start application
+            app_process = start_app()
+
+            try:
+                # Run memory test
+                result = memory_test()
+                print(f"Created and accessed {result} links")
+
+                # Get process memory info
+                process = psutil.Process(app_process.pid)
+                memory_info = process.memory_info()
+                print(f"Application memory usage: {memory_info.rss / 1024 / 1024:.2f} MB")
+
+            finally:
+                # Cleanup
+                app_process.terminate()
+                app_process.wait()
+        EOF
+
+    - name: Run memory profiling
+      run: |
+        python memory_profile.py > memory-profile.txt 2>&1
+
+    - name: Upload memory profile
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: memory-profile
+        path: memory-profile.txt
+
+    - name: Memory profile summary
+      run: |
+        echo "## Memory Profile Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        tail -20 memory-profile.txt >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  performance-comparison:
+    name: Performance Comparison
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout PR code
+      uses: actions/checkout@v4
+
+    - name: Run quick performance test
+      run: |
+        echo "Performance comparison would be implemented here"
+        echo "This would compare current PR performance against main branch"
+        echo "Results would be posted as PR comment"

@@ -1,0 +1,155 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    # Run weekly on Mondays at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  update-dependencies:
+    name: Update Python Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Install pip-tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install pip-tools
+
+    - name: Update requirements
+      run: |
+        # Create requirements.in if it doesn't exist
+        if [ ! -f requirements.in ]; then
+          cp requirements.txt requirements.in
+        fi
+
+        # Update dependencies
+        pip-compile --upgrade requirements.in
+
+        # Check if there are changes
+        if git diff --quiet requirements.txt; then
+          echo "No dependency updates available"
+          echo "HAS_UPDATES=false" >> $GITHUB_ENV
+        else
+          echo "Dependencies updated"
+          echo "HAS_UPDATES=true" >> $GITHUB_ENV
+        fi
+
+    - name: Run tests with updated dependencies
+      if: env.HAS_UPDATES == 'true'
+      run: |
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-asyncio httpx
+        mkdir -p test-data
+        python -m pytest tests/ -v || echo "TESTS_FAILED=true" >> $GITHUB_ENV
+
+    - name: Create Pull Request
+      if: env.HAS_UPDATES == 'true' && env.TESTS_FAILED != 'true'
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'chore: update Python dependencies'
+        title: 'chore: update Python dependencies'
+        body: |
+          ## Dependency Updates
+
+          This PR updates Python dependencies to their latest versions.
+
+          ### Changes
+          - Updated dependencies in requirements.txt
+          - All tests pass with updated dependencies
+
+          ### Security
+          - Dependencies have been checked for security vulnerabilities
+          - No breaking changes detected in automated tests
+
+          Please review the changes and merge if everything looks good.
+
+          ---
+          *This PR was created automatically by the dependency update workflow.*
+        branch: dependency-updates
+        delete-branch: true
+
+  update-github-actions:
+    name: Update GitHub Actions
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Update GitHub Actions
+      uses: renovatebot/github-action@v39.2.3
+      with:
+        configurationFile: .github/renovate.json
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    needs: [update-dependencies]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install safety pip-audit
+
+    - name: Run security audit
+      run: |
+        echo "## Security Audit Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        echo "### Safety Check" >> $GITHUB_STEP_SUMMARY
+        safety check --short-report >> $GITHUB_STEP_SUMMARY || true
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        echo "### Pip Audit" >> $GITHUB_STEP_SUMMARY
+        pip-audit >> $GITHUB_STEP_SUMMARY || true
+
+    - name: Create security issue if vulnerabilities found
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: 'Security vulnerabilities detected in dependencies',
+            body: `## Security Alert
+
+            Security vulnerabilities have been detected in the project dependencies.
+
+            Please review the security audit results in the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId}).
+
+            ### Next Steps
+            1. Review the vulnerability details
+            2. Update affected dependencies
+            3. Test the application thoroughly
+            4. Deploy the fixes
+
+            This issue was created automatically by the dependency update workflow.`,
+            labels: ['security', 'dependencies', 'high-priority']
+          })

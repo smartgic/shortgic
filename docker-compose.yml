@@ -1,0 +1,35 @@
+services:
+  shortgic:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shortgic-app
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persistent data storage for SQLite database
+      - shortgic_data:/data
+      # Optional: Mount configuration file
+      - ./.env:/app/.env:ro
+    environment:
+      # Application configuration
+      - SHORTGIC_DATABASE_PATH=/data/shortgic.db
+      - SHORTGIC_APP_NAME=ShortGic
+      - SHORTGIC_DEBUG=false
+      - SHORTGIC_LINK_LENGTH=5
+      - SHORTGIC_MAX_URL_LENGTH=2048
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  shortgic_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data
