@@ -4,6 +4,7 @@ This module contains all database operations including creating, reading,
 updating, and deleting short links. All functions include proper error
 handling and use cryptographically secure random generation.
 """
+
 from typing import Optional, Union
 from sqlalchemy.orm import Session
 from . import models, schemas
@@ -29,7 +30,9 @@ def get_link(db: Session, link: str) -> Optional[models.Link]:
     return db.query(models.Link).filter(models.Link.link == link).first()
 
 
-def get_link_by_target(db: Session, target: Union[str, HttpUrl]) -> Optional[models.Link]:
+def get_link_by_target(
+    db: Session, target: Union[str, HttpUrl]
+) -> Optional[models.Link]:
     """Retrieve a short link record by its target URL.
 
     Searches the database for a link record with the specified target URL.
@@ -43,7 +46,7 @@ def get_link_by_target(db: Session, target: Union[str, HttpUrl]) -> Optional[mod
         Optional[models.Link]: The link record if found, None otherwise.
     """
     # Convert HttpUrl to string if needed
-    target_str = str(target) if hasattr(target, '__str__') else target
+    target_str = str(target) if hasattr(target, "__str__") else target
     return db.query(models.Link).filter(models.Link.target == target_str).first()
 
 
@@ -67,9 +70,14 @@ def generate_unique_link(db: Session) -> str:
     max_attempts = 10
 
     for _ in range(max_attempts):
-        shortened = ''.join(secrets.choice(chars) for _ in range(settings.link_length)).upper()
+        shortened = "".join(
+            secrets.choice(chars) for _ in range(settings.link_length)
+        ).upper()
         # Use EXISTS query for better performance
-        exists = db.query(models.Link.id).filter(models.Link.link == shortened).first() is not None
+        exists = (
+            db.query(models.Link.id).filter(models.Link.link == shortened).first()
+            is not None
+        )
         if not exists:
             return shortened
 

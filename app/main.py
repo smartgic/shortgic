@@ -3,6 +3,7 @@
 This module contains the main FastAPI application with all API endpoints
 for the ShortGic URL shortener service.
 """
+
 from contextlib import asynccontextmanager
 from typing import Annotated, Dict, Any
 from fastapi import Depends, FastAPI, HTTPException
@@ -40,7 +41,7 @@ app = FastAPI(
         "name": "SmartGic",
         "url": "https://github.com/smartgic/shortgic",
     },
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 
@@ -113,8 +114,8 @@ def create_link(link: schemas.Link, db: DbDependency) -> schemas.LinkResponse:
             detail=utils.create_error_detail(
                 "duplicate_url",
                 "This URL has already been shortened",
-                existing_link=db_link.link
-            )
+                existing_link=db_link.link,
+            ),
         )
 
     response = crud.create_link(db=db, link=link)

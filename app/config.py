@@ -4,6 +4,7 @@ This module provides centralized configuration management with environment
 variable support and validation. All application settings are defined here
 with sensible defaults and can be overridden via environment variables.
 """
+
 from pydantic_settings import BaseSettings
 
 

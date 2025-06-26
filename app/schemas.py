@@ -4,6 +4,7 @@ This module defines all Pydantic models used for API request validation,
 response serialization, and data transfer objects. Includes input validation
 with configurable limits and standardized error response formats.
 """
+
 from typing import Optional, Any, Dict
 from pydantic import BaseModel, HttpUrl, ConfigDict, Field
 from .config import settings
@@ -20,8 +21,12 @@ class Link(BaseModel):
         extras: Optional dictionary for additional metadata or tracking information.
     """
 
-    target: HttpUrl = Field(..., max_length=settings.max_url_length, description="Target URL to shorten")
-    extras: Optional[Dict[str, Any]] = Field(default={}, description="Additional metadata for the link")
+    target: HttpUrl = Field(
+        ..., max_length=settings.max_url_length, description="Target URL to shorten"
+    )
+    extras: Optional[Dict[str, Any]] = Field(
+        default={}, description="Additional metadata for the link"
+    )
 
     # Pydantic V2 configuration
     model_config = ConfigDict(from_attributes=True)
@@ -53,7 +58,9 @@ class ErrorResponse(BaseModel):
 
     error: str = Field(..., description="Error type")
     message: str = Field(..., description="Human-readable error message")
-    details: Optional[Dict[str, Any]] = Field(default=None, description="Additional error details")
+    details: Optional[Dict[str, Any]] = Field(
+        default=None, description="Additional error details"
+    )
 
 
 class SuccessResponse(BaseModel):

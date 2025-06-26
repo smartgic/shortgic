@@ -4,6 +4,7 @@ This module handles SQLAlchemy database setup, connection management,
 and ensures database file creation. Provides the database engine,
 session factory, and base model class for the application.
 """
+
 import os
 from pathlib import Path
 from sqlalchemy import create_engine

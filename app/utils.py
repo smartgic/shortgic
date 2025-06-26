@@ -3,6 +3,7 @@
 This module contains reusable helper functions for validation, error handling,
 and common operations used across the application.
 """
+
 from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -27,8 +28,8 @@ def validate_link_format(link: str) -> None:
             status_code=400,
             detail={
                 "error": "invalid_link_format",
-                "message": f"Link must be exactly {settings.link_length} alphanumeric characters"
-            }
+                "message": f"Link must be exactly {settings.link_length} alphanumeric characters",
+            },
         )
 
 
@@ -57,8 +58,8 @@ def get_link_or_404(db: Session, link: str) -> models.Link:
             status_code=404,
             detail={
                 "error": "link_not_found",
-                "message": "The requested short link does not exist"
-            }
+                "message": "The requested short link does not exist",
+            },
         )
     return db_link
 
@@ -76,9 +77,6 @@ def create_error_detail(error_type: str, message: str, **kwargs) -> dict:
     Returns:
         dict: Formatted error detail dictionary.
     """
-    detail = {
-        "error": error_type,
-        "message": message
-    }
+    detail = {"error": error_type, "message": message}
     detail.update(kwargs)
     return detail

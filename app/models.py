@@ -4,6 +4,7 @@ This module defines the database schema and ORM models used for storing
 short link data. All models inherit from the declarative base and include
 proper indexing for optimal query performance.
 """
+
 from sqlalchemy import Column, String, Text, Integer, JSON, Index
 from .database import Base
 
@@ -30,6 +31,4 @@ class Link(Base):
     extras = Column(JSON, nullable=True)
 
     # Composite index for efficient duplicate checking
-    __table_args__ = (
-        Index('ix_target_hash', 'target'),  # Optimized target lookup
-    )
+    __table_args__ = (Index("ix_target_hash", "target"),)  # Optimized target lookup
