@@ -54,7 +54,7 @@ jobs:
           mkdir -p tests
           cat > tests/test_basic.py << 'EOF'
         import pytest
-        from fastapi.testclient import TestClient
+        from starlette.testclient import TestClient
         from app.main import app
 
         client = TestClient(app)
@@ -170,7 +170,7 @@ jobs:
       with:
         context: .
         push: false
-        tags: ${{ env.DOCKER_IMAGE }}:test
+        tags: shortgic:test
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
@@ -184,7 +184,7 @@ jobs:
           -p 8000:8000 \
           -v $(pwd)/test-data:/data \
           -e SHORTGIC_DATABASE_PATH=/data/test.db \
-          ${{ env.DOCKER_IMAGE }}:test
+          shortgic:test
 
         # Wait for container to be ready
         sleep 10
@@ -212,13 +212,13 @@ jobs:
     - name: Run security scan on Docker image
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: ${{ env.DOCKER_IMAGE }}:test
+        image-ref: shortgic:test
         format: 'sarif'
         output: 'trivy-results.sarif'
 
     - name: Upload Trivy scan results
-      uses: github/codeql-action/upload-sarif@v2
-      if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      if: always() && hashFiles('trivy-results.sarif') != ''
       with:
         sarif_file: 'trivy-results.sarif'
 

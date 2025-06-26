@@ -1,6 +1,5 @@
 """Performance tests for ShortGic URL shortener."""
 
-import pytest
 import time
 from starlette.testclient import TestClient
 
