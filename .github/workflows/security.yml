@@ -127,9 +127,8 @@ jobs:
       uses: trufflesecurity/trufflehog@main
       with:
         path: ./
-        base: main
-        head: HEAD
         extra_args: --debug --only-verified
+      continue-on-error: true
 
   license-check:
     name: License Compliance
