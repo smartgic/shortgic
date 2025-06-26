@@ -37,10 +37,7 @@ class Settings(BaseSettings):
     # URL validation
     max_url_length: int = 2048
 
-    model_config = ConfigDict(
-        env_file=".env",
-        env_prefix="SHORTGIC_"
-    )
+    model_config = ConfigDict(env_file=".env", env_prefix="SHORTGIC_")
 
 
 settings = Settings()
