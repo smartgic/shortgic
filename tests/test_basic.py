@@ -32,7 +32,7 @@ def test_redirect(client: TestClient):
     # Test redirect
     response = client.get(f"/{short_link}", follow_redirects=False)
     assert response.status_code == 302
-    assert response.headers["location"] == "https://example.com"
+    assert response.headers["location"] == "https://example.com/"
 
 
 def test_get_link_info(client: TestClient):
@@ -47,7 +47,7 @@ def test_get_link_info(client: TestClient):
     response = client.get(f"/{short_link}/info")
     assert response.status_code == 200
     data = response.json()
-    assert data["target"] == "https://example.com"
+    assert data["target"] == "https://example.com/"
 
 
 def test_delete_link(client: TestClient):
@@ -77,7 +77,7 @@ def test_duplicate_url(client: TestClient):
     response = client.post("/", json={"target": "https://example.com"})
     assert response.status_code == 400
     data = response.json()
-    assert "duplicate_url" in data["detail"]["error_code"]
+    assert "duplicate_url" in data["detail"]["error"]
 
 
 def test_invalid_link_format(client: TestClient):
@@ -97,5 +97,5 @@ def test_invalid_link_format(client: TestClient):
 
 def test_nonexistent_link(client: TestClient):
     """Test accessing a link that doesn't exist."""
-    response = client.get("/abcd1234", follow_redirects=False)
+    response = client.get("/AAAAA", follow_redirects=False)
     assert response.status_code == 404

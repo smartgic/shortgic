@@ -16,8 +16,11 @@ def test_health_check_performance(benchmark, client: TestClient):
 
 def test_create_link_performance(benchmark, client: TestClient):
     """Benchmark link creation performance."""
+    import time
     def create_link():
-        response = client.post("/", json={"target": "https://example.com/benchmark"})
+        # Use unique URL to avoid duplicate errors
+        unique_url = f"https://example.com/benchmark-{int(time.time() * 1000000)}"
+        response = client.post("/", json={"target": unique_url})
         assert response.status_code == 201
         return response
 
