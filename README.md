@@ -1,6 +1,6 @@
 # 🚀 ShortGic - Lightning Fast URL Shortener
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![contributions welcome](https://img.shields.io/badge/contributions-welcome-pink.svg?style=flat)](https://github.com/smartgic/shortgic/pulls) [![Discord](https://img.shields.io/discord/809074036733902888)](https://discord.gg/Vu7Wmd9j)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![contributions welcome](https://img.shields.io/badge/contributions-welcome-pink.svg?style=flat)](https://github.com/smartgic/shortgic/pulls) [![Discord](https://img.shields.io/discord/809074036733902888)](https://discord.gg/Vu7Wmd9j)
 
 > **Transform long URLs into short, shareable links in milliseconds** ⚡
 
@@ -174,7 +174,7 @@ Check out our [contribution guidelines](https://github.com/smartgic/shortgic/pul
 
 ## 📄 License
 
-MIT License - feel free to use ShortGic in your projects, commercial or otherwise.
+Apache License 2.0 - feel free to use ShortGic in your projects, commercial or otherwise.
 
 ---
 
