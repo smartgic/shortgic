@@ -177,8 +177,11 @@ jobs:
 
     - name: Test Docker image
       run: |
-        # Create test data directory
+        # Create test data directory. The container runs as uid 1000 and the
+        # runner is not that user, so the mounted directory has to be writable
+        # by it or the app cannot create its database and exits at startup.
         mkdir -p test-data
+        chmod 0777 test-data
 
         # Run container in background
         docker run -d --name shortgic-test \
@@ -188,10 +191,13 @@ jobs:
           shortgic:test
 
         # Wait for container to be ready
-        sleep 10
+        for i in $(seq 1 30); do
+          curl -fs -o /dev/null http://localhost:8000/ && break
+          sleep 1
+        done
 
         # Test health endpoint
-        curl -f http://localhost:8000/ || exit 1
+        curl -f http://localhost:8000/ || { docker logs shortgic-test; exit 1; }
 
         # Test API functionality
         RESPONSE=$(curl -s -X POST http://localhost:8000 \
