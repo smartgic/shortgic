@@ -42,8 +42,15 @@ WORKDIR /app
 COPY --chown=shortgic:shortgic requirements.txt .
 
 # Install Python dependencies
-RUN pip install --user --no-cache-dir --upgrade pip && \
-    pip install --user --no-cache-dir -r requirements.txt
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+# pip is only needed to build the image, and it vendors its own copies of
+# urllib3, msgpack and setuptools that lag their fixes (pip 26.2.1 still ships
+# urllib3 2.7.0), so the security scan fails on pip rather than on the app.
+USER root
+RUN python -m pip uninstall -y pip && \
+    rm -rf /usr/local/lib/python3.13/ensurepip
+USER shortgic
 
 # Copy application code
 COPY --chown=shortgic:shortgic app/ ./app/
